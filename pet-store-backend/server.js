@@ -1,7 +1,4 @@
-// server.js
-
 // --- Global Uncaught Exception and Unhandled Rejection Handlers ---
-// Keep these at the very top to catch any immediate startup issues
 process.on('uncaughtException', (err) => {
   console.error('UNCAUGHT EXCEPTION! Shutting down...');
   console.error(err.name, err.message, err.stack);
@@ -11,58 +8,78 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (err) => {
   console.error('UNHANDLED REJECTION! Shutting down...');
   console.error(err.name, err.message, err.stack);
+  // It's good practice to close your server before exiting
+  // if your app is primarily server-based.
+  // For now, let's just exit for immediate feedback.
   process.exit(1); // Exit with a failure code
 });
 // --- END Global Handlers ---
 
 // Load environment variables from .env file
 require('dotenv').config();
+// ... rest of your server.js code
+// server.js
+
+// Load environment variables from .env file
+require('dotenv').config();
 
 const express = require('express');
-// Temporarily remove imports for middleware and modules we are testing
-// const cors = require('cors');
-// const connectDB = require('./config/db'); // TEMPORARILY COMMENTED OUT FOR THIS TEST
-// const errorHandler = require('./middleware/errorHandler');
+const cors = require('cors'); // Import cors
+const connectDB = require('./config/db'); // Import the connectDB function
+const errorHandler = require('./middleware/errorHandler'); // Import error handler middleware
 
-// Temporarily remove Passport & Sessions imports
-// const passport = require('passport');
-// const session = require('express-session');
-// require('./config/passport'); // Don't run passport config if passport not used
+// --- NEW: For Passport & Sessions ---
+const passport = require('passport');
+const session = require('express-session');
+require('./config/passport'); // This line runs your passport configuration
+// --- END NEW ---
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Connect to database (TEMPORARILY COMMENTED OUT FOR THIS TEST)
-// connectDB(); // TEMPORARILY COMMENTED OUT FOR THIS TEST
+// Connect to database
+connectDB();
 
-// --- Minimal Middleware ---
-// Only express.json() for basic body parsing. Temporarily remove others.
-// app.use(cors()); // Temporarily removed
+// --- Middleware ---
+// Enable CORS for all origins (for development)
+// In production, you'd specify allowed origins: cors({ origin: 'http://yourfrontend.com' })
+app.use(cors());
+// Body parser for JSON data
 app.use(express.json());
 
-// --- Temporarily remove Passport & Session Middleware ---
-// app.use(session({ /* ... */ })); // Temporarily removed
-// app.use(passport.initialize()); // Temporarily removed
-// app.use(passport.session()); // Temporarily removed
+// --- NEW: Passport & Session Middleware ---
+// This must come BEFORE your routes that use Passport for authentication
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'a_fallback_secret_key_for_session_if_env_is_missing', // Use an environment variable for a real secret
+    resave: false, // Don't save session if unmodified
+    saveUninitialized: false, // Don't create session until something stored
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production (https)
+        maxAge: 1000 * 60 * 60 * 24 // 1 day in milliseconds
+    }
+}));
+app.use(passport.initialize()); // Initialize Passport
+app.use(passport.session());    // Enable Passport session support
+// --- END NEW ---
 
-// --- Only the Basic Route (for health check) ---
-// Temporarily remove all other route imports and app.use() lines for them
-// const productRoutes = require('./routes/productRoutes');
-// const orderRoutes = require.on('./routes/orderRoutes');
-// const authRoutes = require('./routes/authRoutes');
+// --- Routes ---
+const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const authRoutes = require('./routes/authRoutes');
 
-// app.use('/api/products', productRoutes); // Temporarily removed
-// app.use('/api/auth', authRoutes); // Temporarily removed
-// app.use('/api/orders', orderRoutes); // Temporarily removed
+app.use('/api/products', productRoutes);
+// Make sure /api/auth routes are placed here, after Passport initialization
+app.use('/api/auth', authRoutes);
+app.use('/api/orders', orderRoutes);
 
-// This is the ONLY route your server should have right now
+// --- Basic Route (for testing if server is running) ---
 app.get('/', (req, res) => {
-    console.log('Health check route was hit! Sending explicit 200 OK.'); // Updated log
-    res.status(200).send('Welcome to the Paws & Claws Emporium API - Health Check!'); // Explicit 200 OK
+    res.send('Welcome to the Paws & Claws Emporium API!');
 });
 
-// --- Temporarily remove Error handling middleware ---
-// app.use(errorHandler); // Temporarily removed
+// --- Error handling middleware ---
+// This should be the last middleware in your chain
+app.use(errorHandler);
 
 // --- Start Server ---
 app.listen(PORT, () => {
