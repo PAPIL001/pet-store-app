@@ -1,4 +1,7 @@
+// server.js
+
 // --- Global Uncaught Exception and Unhandled Rejection Handlers ---
+// Keep these at the very top to catch any immediate startup issues
 process.on('uncaughtException', (err) => {
   console.error('UNCAUGHT EXCEPTION! Shutting down...');
   console.error(err.name, err.message, err.stack);
@@ -15,10 +18,6 @@ process.on('unhandledRejection', (err) => {
 });
 // --- END Global Handlers ---
 
-// Load environment variables from .env file
-require('dotenv').config();
-// ... rest of your server.js code
-// server.js
 
 // Load environment variables from .env file
 require('dotenv').config();
